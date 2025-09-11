@@ -56,11 +56,11 @@ Lets you loop the same workflow across multiple models without clicking through 
 
 Located in suitetea/scripts/ — helper utilities for batch workflows:
 
-- discover_models_flat.py
+- ```discover_models_flat.py```:
   Scans your private models folder (from suiteTea_local.json) and writes models_list.txt.
 Run this whenever you add/remove checkpoints.
 
-- run_all_models.py
+- ```run_all_models.py```
   Reads models_list.txt and your exported workflow (modelloop.json).
   Runs the workflow once for each model, saving results into a timestamped folder with the model name as filename prefix.
 
