@@ -44,10 +44,25 @@ Lets you loop the same workflow across multiple models without clicking through 
 - `ckpt_path` (STRING, full path to .safetensors or .ckpt)  
 
 **Usage** (model loop workflow)
-1. Create a suiteTea_local.json in suitetea/scripts/ with your private model folder path: ```JSON { "MODELS_DIR": "C:/your/full/path/to/checkpoints" }```
+1. Create a suiteTea_local.json in suitetea/scripts/ with your private model folder path: 
+```JSON { "MODELS_DIR": "C:/your/full/path/to/checkpoints" }```
 2. Run discover_models_flat.py → generates models_list.txt.
 3. Build a workflow modelloop.json using Tea: CheckpointLoader instead of the dropdown loader.
 4. Run run_all_models.py → will iterate through all models in models_list.txt using the same workflow.
+
+---
+
+## Scripts
+
+Located in suitetea/scripts/ — helper utilities for batch workflows:
+
+- discover_models_flat.py
+  Scans your private models folder (from suiteTea_local.json) and writes models_list.txt.
+Run this whenever you add/remove checkpoints.
+
+- run_all_models.py
+  Reads models_list.txt and your exported workflow (modelloop.json).
+  Runs the workflow once for each model, saving results into a timestamped folder with the model name as filename prefix.
 
 ---
 
