@@ -31,33 +31,33 @@ def read_lines(path: Path):
 def load_prompt(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
+def _nodes_iter(prompt: dict):
+    # supports both {"nodes": {...}} and {"3": {...}, "5": {...}}
+    if isinstance(prompt.get("nodes"), dict):
+        return prompt["nodes"].items()
+    return prompt.items()
+
 def set_ckpt_path(prompt: dict, model_path: str) -> bool:
     found = False
-    nodes = prompt.get("nodes", {})
-    for _, node in nodes.items():
+    for _, node in _nodes_iter(prompt):
         if node.get("class_type") == LOADER_CLASS:
             node.setdefault("inputs", {})["ckpt_path"] = model_path
             found = True
     return found
 
 def set_filename_prefix(prompt: dict, prefix: str) -> bool:
-    """Set filename_prefix on SaveImage (widgets_values[0]). Returns True if at least one changed."""
     changed = False
-    nodes = prompt.get("nodes", {})
-    for _, node in nodes.items():
-        cls = node.get("class_type")
-        if cls in SAVE_CLASSES:
+    for _, node in _nodes_iter(prompt):
+        if node.get("class_type") in SAVE_CLASSES:
             w = node.setdefault("widgets_values", [])
             if not w:
                 node["widgets_values"] = [prefix]
             else:
-                # widgets_values[0] is filename_prefix on stock SaveImage
                 node["widgets_values"][0] = prefix
             changed = True
-        # Optional: if your save node has a 'subfolder' input, set it too
-        inputs = node.get("inputs", {})
-        if "subfolder" in inputs:
-            inputs["subfolder"] = prefix.split("/")[0]  # put run folder in subfolder, keep filename prefix short
+            # optional: if your Save node has a 'subfolder' input, set it too
+            if "inputs" in node and "subfolder" in node["inputs"]:
+                node["inputs"]["subfolder"] = prefix.split("/")[0]
     return changed
 
 def enqueue(prompt: dict) -> str:
