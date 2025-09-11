@@ -4,3 +4,5 @@ pycache/
 *.pyd
 .DS_Store
 Thumbs.db
+new_node.py
+.vscode/
