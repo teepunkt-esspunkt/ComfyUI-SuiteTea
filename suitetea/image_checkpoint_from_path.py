@@ -2,7 +2,7 @@ import os
 import comfy.model_management as mm
 import comfy.sd
 
-class Tea_CheckpointFromPath:
+class Tea_ImageCheckpointFromPath:
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {"ckpt_path": ("STRING", {"multiline": False})}}
