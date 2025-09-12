@@ -11,3 +11,4 @@ suiteTea_local.json
 modelloop.json
 *.txt
 /output
+*.zip
