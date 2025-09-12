@@ -30,7 +30,7 @@ Documentation = "https://github.com/teepunkt-esspunkt/ComfyUI-SuiteTea/wiki"
 [tool.comfy]
 PublisherId = "zatom"
 DisplayName = "ComfyUI-SuiteTea"
-Icon = "http://main.bplaced.net/pics/SuiteTea.png"
+Icon = "https://raw.githubusercontent.com/teepunkt-esspunkt/ComfyUI-SuiteTea/main/assets/SuiteTea.png"
 includes = [] 
 # "requires-comfyui" = ">=1.0.0"  # ComfyUI version compatibility
 
