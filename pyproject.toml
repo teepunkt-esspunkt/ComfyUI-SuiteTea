@@ -1,5 +1,5 @@
 [project]
-name = "suitetea"
+name = "ComfyUI-SuiteTea"
 description = "some good nodes for bad reasons"
 version = "1.0.0"
 license = {file = "LICENSE"} 
