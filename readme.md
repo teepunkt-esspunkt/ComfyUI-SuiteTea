@@ -45,7 +45,7 @@ Lets you loop the same workflow across multiple models without clicking through 
 
 **Usage** (model loop workflow)
 1. Create a suiteTea_local.json in suitetea/scripts/ with your private model folder path: 
-```JSON { "MODELS_DIR": "C:/your/full/path/to/checkpoints" }```
+```{ "MODELS_DIR": "C:/your/full/path/to/checkpoints" }```
 2. Run discover_models_flat.py → generates models_list.txt.
 3. Build a workflow modelloop.json using Tea: CheckpointLoader instead of the dropdown loader.
 4. Run run_all_models.py → will iterate through all models in models_list.txt using the same workflow.

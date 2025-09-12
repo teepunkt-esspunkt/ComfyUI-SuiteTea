@@ -1,3 +1,5 @@
+# Needs a a "suiteTea_local.json" in suitetea/scripts/ with your private model folder path: { "MODELS_DIR": "C:/your/full/path/to/checkpoints" }
+
 import json, pathlib
 
 HERE = pathlib.Path(__file__).parent
