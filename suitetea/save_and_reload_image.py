@@ -1,92 +1,90 @@
-from PIL import ImageOps, Image
+# suitetea/save_and_reload_image.py
+from pathlib import Path
 import numpy as np
+from PIL import Image
 import torch
-import os
-import requests
-from io import BytesIO
-import hashlib
 
-TEXT_TYPE = "STRING"
+def _to_pil(image: torch.Tensor) -> Image.Image:
+    """
+    Accepts IMAGE as torch.Tensor in BHWC (preferred) or BCHW/CHW.
+    Saves/reloads only the FIRST item if batch>1.
+    """
+    t = image
+    if isinstance(t, list):
+        t = t[0]
+    if not isinstance(t, torch.Tensor):
+        raise ValueError("Expected IMAGE tensor.")
+    # pick first in batch if present
+    if t.dim() == 4:
+        # BHWC vs BCHW
+        if t.shape[-1] in (3, 4):       # BHWC
+            t = t[0]                    # HWC
+        else:                           # BCHW
+            t = t[0].permute(1, 2, 0)   # CHW -> HWC
+    elif t.dim() == 3:
+        if t.shape[0] in (1, 3, 4):     # CHW -> HWC
+            t = t.permute(1, 2, 0)
+    else:
+        raise ValueError(f"Unsupported tensor shape: {t.shape}")
 
+    arr = (t.clamp(0, 1).cpu().numpy() * 255.0).astype(np.uint8)
+    if arr.ndim == 2:
+        arr = np.stack([arr, arr, arr], axis=-1)
+    if arr.shape[-1] == 4:
+        arr = arr[:, :, :3]
+    return Image.fromarray(arr, mode="RGB")
 
-#was nodes load
+def _from_pil(pil: Image.Image) -> torch.Tensor:
+    """Return IMAGE as [1,H,W,3] float32 0..1 (CPU)."""
+    pil = pil.convert("RGB")
+    arr = np.array(pil, dtype=np.uint8)
+    t = torch.from_numpy(arr).float() / 255.0
+    return t.unsqueeze(0)
+
 class Tea_SaveAndReloadImage:
+    """
+    Saves the incoming IMAGE to disk and reloads it to break upstream tensor references.
+    Note: operates on the FIRST image in the batch.
+    """
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
-                "required": {
-                    "image_path": ("STRING", {"default": './ComfyUI/input/example.png', "multiline": False}),
-                    "RGBA": (["false","true"],),
-                },
-                "optional": {
-                    "filename_text_extension": (["true", "false"],),
-                }
+            "required": {
+                "image": ("IMAGE",),
+                "temp_folder": ("STRING", {"default": "output/temp", "multiline": False}),
+                "filename": ("STRING", {"default": "bgstrip.png", "multiline": False}),
+                "also_save_perm": ("BOOLEAN", {"default": False}),
+                "perm_folder": ("STRING", {"default": "output/saved", "multiline": False}),
             }
+        }
 
-    RETURN_TYPES = ("IMAGE", "MASK", TEXT_TYPE)
-    RETURN_NAMES = ("image", "mask", "filename_text")
-    FUNCTION = "load_image"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("reloaded_image",)
+    FUNCTION = "run"
+    CATEGORY = "SuiteTea/IO"
 
-    CATEGORY = "WAS Suite/IO"
+    def run(self, image, temp_folder, filename, also_save_perm, perm_folder):
+        temp_dir = Path(temp_folder)
+        perm_dir = Path(perm_folder)
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        if also_save_perm:
+            perm_dir.mkdir(parents=True, exist_ok=True)
 
-    def load_image(self, image_path, RGBA='false', filename_text_extension="true"):
+        # ensure .png extension
+        p = Path(filename)
+        if p.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+            p = p.with_suffix(".png")
 
-        RGBA = (RGBA == 'true')
+        pil = _to_pil(image)
+        temp_path = temp_dir / p.name
+        pil.save(temp_path)  # overwrite ok
 
-        if image_path.startswith('http'):
-            from io import BytesIO
-            i = self.download_image(image_path)
-            i = ImageOps.exif_transpose(i) # type: ignore
-        else:
-            try:
-                i = Image.open(image_path)
-                i = ImageOps.exif_transpose(i)
-            except OSError:
-                print(f"The image `{image_path.strip()}` specified doesn't exist!")
-                i = Image.new(mode='RGB', size=(512, 512), color=(0, 0, 0))
-        if not i:
-            return
+        if also_save_perm:
+            pil.save(perm_dir / p.name)
 
-        image = i
-        if not RGBA:
-            image = image.convert('RGB')
-        image = np.array(image).astype(np.float32) / 255.0
-        image = torch.from_numpy(image)[None,]
+        # reload
+        with Image.open(temp_path) as im:
+            out = _from_pil(im)
 
-        if 'A' in i.getbands():
-            mask = np.array(i.getchannel('A')).astype(np.float32) / 255.0
-            mask = 1. - torch.from_numpy(mask)
-        else:
-            mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
-
-        if filename_text_extension == "true":
-            filename = os.path.basename(image_path)
-        else:
-            filename = os.path.splitext(os.path.basename(image_path))[0]
-
-        return (image, mask, filename)
-
-    def download_image(self, url):
-        try:
-            response = requests.get(url)
-            response.raise_for_status()
-            img = Image.open(BytesIO(response.content))
-            return img
-        except requests.exceptions.HTTPError as errh:
-            print(f"HTTP Error: ({url}): {errh}")
-        except requests.exceptions.ConnectionError as errc:
-            print(f"Connection Error: ({url}): {errc}")
-        except requests.exceptions.Timeout as errt:
-            print(f"Timeout Error: ({url}): {errt}")
-        except requests.exceptions.RequestException as err:
-            print(f"Request Exception: ({url}): {err}")
-
-    @classmethod
-    def IS_CHANGED(cls, image_path):
-        if image_path.startswith('http'):
-            return float("NaN")
-        m = hashlib.sha256()
-        with open(image_path, 'rb') as f:
-            m.update(f.read())
-        return m.digest().hex()
+        return (out,)

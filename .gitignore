@@ -10,3 +10,4 @@ models_list.txt
 suiteTea_local.json
 modelloop.json
 *.txt
+/output
