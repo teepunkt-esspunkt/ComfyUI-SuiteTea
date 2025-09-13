@@ -15,7 +15,7 @@ Some good ComfyUI nodes for bad reasons.
 
 ### Tea: Save & Reload Image (category: SuiteTea / IO)
 
-A utility node to save **VRAM** on of older GPU's
+A utility node to save **VRAM** on  older GPU's.
 Some workflows pass images directly from one model to another → this can cause *out-of-memory* (OOM) errors on the first run.  
 This node saves the IMAGE to disk and reloads it immediately, forcing upstream tensors to unload.
 
