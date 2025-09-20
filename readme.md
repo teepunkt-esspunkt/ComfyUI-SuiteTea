@@ -1,5 +1,5 @@
 # ComfyUI-SuiteTea
-<p align="center">
+<p align="left">
   <img src="assets/SuiteTea.png" alt="SuiteTea Logo" width="400">
 </p>
 
@@ -18,14 +18,21 @@ Some good ComfyUI nodes for bad reasons.
 
 ### Tea: Save & Reload Image (category: SuiteTea / IO)
 
-A utility node to save **VRAM** on  older GPU's.
-Some workflows pass images directly from one model to another → this can cause *out-of-memory* (OOM) errors on the first run.  
-This node saves the IMAGE to disk and reloads it immediately, forcing upstream tensors to unload.
+A utility node to save VRAM on older GPUs.
+Many workflows pass images directly from one model to another → this can cause out-of-memory (OOM) errors on the first run.
+This node saves the image to disk and reloads it, forcing upstream tensors to unload.
+
+New in V2:
+- Works as both a detacher and a normal image loader.
+- Has a file picker with preview (like the stock Load Image node).
+- Cleaner defaults: Teafault.png, output/temp, output/saved.
+- ⚠️ V2 will replace the original node soon — existing workflows may break.
 
 **Inputs**
-- `image` (IMAGE)  
+- `image_in` (optional IMAGE tensor) → triggers save→reload.
+- `image`(picker) → choose/upload an image with preview.
 - `temp_folder` (default `output/temp`)  
-- `filename` (default `bgstrip.png`)  
+- `filename` (default `Teafault.png`)  
 - `also_save_perm` (BOOLEAN, default `false`)  
 - `perm_folder` (default `output/saved`)  
 
@@ -33,7 +40,11 @@ This node saves the IMAGE to disk and reloads it immediately, forcing upstream t
 - `reloaded_image` (BHWC float, shape 1×H×W×3)
 
 **Usage**
-Preprocessor → Tea: Save & Reload Image → Sampler.reference_image
+- To break tensor lineage:
+  Model Output → Tea: Save & Reload Image V2 → Next Node
+
+- To just load a file:
+  leave image_in unconnected and pick a file.
 
 ---
 
