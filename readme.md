@@ -1,4 +1,7 @@
 # ComfyUI-SuiteTea
+<p align="center">
+  <img src="assets/SuiteTea.png" alt="SuiteTea Logo" width="400">
+</p>
 
 Some good ComfyUI nodes for bad reasons.
 
