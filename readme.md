@@ -48,7 +48,7 @@ New in V2:
 
 ---
 
-### Tea: CheckpointLoader (category: SuiteTea / IO)
+### Tea: CheckpointLoader (category: SuiteTea / Loaders)
 
 This Node is created to help run a python script run the same workflow with different models
 A string-based checkpoint loader to work with external Python batch scripts.
