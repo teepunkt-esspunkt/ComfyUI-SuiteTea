@@ -22,11 +22,9 @@ A utility node to save VRAM on older GPUs.
 Many workflows pass images directly from one model to another → this can cause out-of-memory (OOM) errors on the first run.
 This node saves the image to disk and reloads it, forcing upstream tensors to unload.
 
-New in V2:
 - Works as both a detacher and a normal image loader.
 - Has a file picker with preview (like the stock Load Image node).
 - Cleaner defaults: Teafault.png, output/temp, output/saved.
-- ⚠️ V2 will replace the original node soon — existing workflows may break.
 
 **Inputs**
 - `image_in` (optional IMAGE tensor) → triggers save→reload.
@@ -65,6 +63,41 @@ Lets you loop the same workflow across multiple models without clicking through 
 4. Run run_all_models.py → will iterate through all models in models_list.txt using the same workflow.
 
 ---
+
+### Tea: Load Fram from Vid As Img (category: SuiteTea / IO)
+
+Extract a single frame from any video and output it as an IMAGE tensor.
+Useful for extending clips from the last frame, grabbing a reference still, or snapshotting a timestamp—while keeping VRAM usage low. Optionally saves the frame as a PNG to reuse in later chains.
+
+**Inputs**
+- `video`(picker) → choose a video
+- `mode`(`first` | `last` | `index` | `time`)
+- `video_path`(STRING, optional override; if set, this path is used instead of the picker)
+- `frame_index`(INT, used when `mode=index`)
+- `time_Sec`(FLOAT, used when `mode=time`)
+- `max_side`(INT, 0 = no resize; otherwise downscales keeping aspect, e.g. 1024)
+- `save_png`(STRING, if empty, auto-names to `output/tea_frames/<video>_<tag>.png`)
+- `overwrite`(BOOLEAN)
+
+**Outputs**
+- `image`(BHCW float, shape 1xHxWx3)
+- `saved_path`(STRING; empty if `save_png=false`)
+- `picked_index`(INT; returns the frame index in `index`mode, otherwise `-1`)
+
+**Usage**
+- Extend a clip from its last frame:
+  `Tea: Load Frame From Vid As Img (mode=last)` → (optional) VAE Encode → your i2v/video pipeline
+- Grab a specific moment:
+  `mode=time`, set `time_sec=2.5` to pick the frame at 2.5s
+  or` mode=index`, set `frame_index=123`
+- Persist the still:
+  Toggle `save_png=true` (and/or set `save_path`) to store a reusable PNG and break tensor lineage.
+
+**Notes**
+- Prefers ffmpeg (fast, robust). If ffmpeg isn’t on PATH, it falls back to OpenCV if installed.
+- Works with common formats (mp4, mov, webm, mkv, …) as supported by ffmpeg.
+- The node returns a CPU tensor; VRAM is only touched when you feed it into a VAE/model.
+- If both `video` and` video_path` are provided, `video_path` takes precedence.
 
 ## Scripts
 
