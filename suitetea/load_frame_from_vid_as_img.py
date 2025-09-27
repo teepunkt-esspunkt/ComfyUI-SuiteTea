@@ -7,6 +7,7 @@ from typing import Optional
 import numpy as np
 import torch
 from PIL import Image
+import folder_paths
 
 # ---------- helpers ----------
 def _resize_if_needed(img_t: torch.Tensor, max_side: int) -> torch.Tensor:
@@ -34,7 +35,6 @@ def _ensure_parent(path: str):
     return p
 
 def _save_tensor_to_png(img_t: torch.Tensor, path: str) -> str:
-    # img_t: (1,H,W,3) float32 [0..1]
     img = (img_t[0].clamp(0.0, 1.0).numpy() * 255.0).astype(np.uint8)
     im = Image.fromarray(img, mode="RGB")
     path = _ensure_parent(path)
@@ -114,32 +114,53 @@ def _extract_with_opencv(video_path: str, mode: str, frame_index: int, time_sec:
 class Tea_LoadFrameFromVidAsImg:
     """
     Load a frame from a video and output it as IMAGE (B,H,W,3 in [0,1]).
-    Modes: first / last / index / time. Optional PNG save.
+    - Use **video picker** (with upload button) or override with `video_path`.
+    - Modes: first / last / index / time. Optional PNG save.
     """
 
     @classmethod
     def INPUT_TYPES(cls):
+        # Build a video file list for the picker + upload
+        input_dir = folder_paths.get_input_directory()
+        try:
+            files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
+        except FileNotFoundError:
+            files = []
+        files = folder_paths.filter_files_content_types(files, ["video"])
+        files.sort()
+
         return {
             "required": {
-                "video_path": ("STRING", {"multiline": False, "default": ""}),
+                # keep 'video' REQUIRED so ComfyUI shows the upload button/preview
+                "video": (files, {"video_upload": True}),
                 "mode": (["first", "last", "index", "time"], {"default": "last"}),
             },
             "optional": {
+                # optional manual override path (absolute/relative)
+                "video_path": ("STRING", {"default": ""}),
                 "frame_index": ("INT", {"default": 0, "min": 0}),
                 "time_sec": ("FLOAT", {"default": 0.0, "min": 0.0}),
                 "max_side": ("INT", {"default": 0, "min": 0, "max": 8192, "step": 4}),
-                "save_png": ("BOOL", {"default": False}),
-                "save_path": ("STRING", {"multiline": False, "default": ""}),
-                "overwrite": ("BOOL", {"default": True}),
+                "save_png": ("BOOLEAN", {"default": False}),
+                "save_path": ("STRING", {"default": ""}),
+                "overwrite": ("BOOLEAN", {"default": True}),
             }
         }
 
     RETURN_TYPES = ("IMAGE", "STRING", "INT")
     RETURN_NAMES = ("image", "saved_path", "picked_index")
     FUNCTION = "run"
-    CATEGORY = "SuiteTea/Video"
+    CATEGORY = "SuiteTea/IO"
 
-    # prefer ffmpeg; fallback to OpenCV
+    def _resolve_video_path(self, annotated_name: str, override_path: str) -> str:
+        if isinstance(override_path, str) and override_path.strip():
+            p = os.path.abspath(override_path.strip())
+        else:
+            p = folder_paths.get_annotated_filepath(annotated_name)
+        if not os.path.isfile(p):
+            raise FileNotFoundError(f"LoadFrameFromVidAsImg: video not found → {p}")
+        return p
+
     def _extract_frame_bytes(self, video_path: str, mode: str, frame_index: int, time_sec: float) -> Optional[bytes]:
         png = _extract_with_ffmpeg(video_path, mode, frame_index, time_sec)
         if png is None:
@@ -148,8 +169,9 @@ class Tea_LoadFrameFromVidAsImg:
 
     def run(
         self,
-        video_path: str,
+        video,                 # picker (annotated name)
         mode: str = "last",
+        video_path: str = "",
         frame_index: int = 0,
         time_sec: float = 0.0,
         max_side: int = 0,
@@ -157,11 +179,8 @@ class Tea_LoadFrameFromVidAsImg:
         save_path: str = "",
         overwrite: bool = True,
     ):
-        if not isinstance(video_path, str) or not video_path.strip():
-            raise ValueError("video_path is empty.")
-        video_path = os.path.abspath(video_path)
-        if not os.path.exists(video_path):
-            raise FileNotFoundError(f"Video not found: {video_path}")
+        # Resolve real file path
+        real_path = self._resolve_video_path(video, video_path)
 
         mode = str(mode).lower().strip()
         if mode not in {"first", "last", "index", "time"}:
@@ -173,7 +192,7 @@ class Tea_LoadFrameFromVidAsImg:
             report_index = frame_index
         time_sec = float(time_sec)
 
-        png_bytes = self._extract_frame_bytes(video_path, mode, frame_index, time_sec)
+        png_bytes = self._extract_frame_bytes(real_path, mode, frame_index, time_sec)
         if png_bytes is None:
             raise RuntimeError("Failed to extract frame. Ensure ffmpeg is on PATH or install opencv-python.")
 
@@ -182,12 +201,11 @@ class Tea_LoadFrameFromVidAsImg:
 
         saved = ""
         if save_png:
-            out_path = save_path.strip() or _auto_save_name(video_path, mode, frame_index, time_sec)
+            out_path = save_path.strip() or _auto_save_name(real_path, mode, frame_index, time_sec)
             out_path = os.path.abspath(out_path)
             if (not overwrite) and os.path.exists(out_path):
                 saved = out_path
             else:
                 saved = _save_tensor_to_png(img_t, out_path)
 
-        # ComfyUI expects a tuple for outputs
         return (img_t, saved, report_index)
